@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <title>Korex Hotel OS — Role-Based Login & Check-In Gatekeeper</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Inter', sans-serif; background: #090d16; color: #f8fafc; }
+    .pulse-alert { animation: alertPulse 1.4s infinite; }
+    @keyframes alertPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+      50% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- TOP DEMO BAR (QUICK ROLE SWITCHER + DUAL VIEW TOGGLE FOR CLIENT PITCHES) -->
+  <header class="bg-slate-900 border-b border-slate-800 px-4 py-2.5 sticky top-0 z-50">
+    <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="h-8 w-8 rounded-lg bg-amber-500 text-slate-950 font-black flex items-center justify-center text-sm">K</div>
+        <div>
+          <span class="font-bold text-sm text-white tracking-wide">KOREX HOTEL OS</span>
+          <span class="ml-2 text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold">
+            RBAC Login + Reception Gatekeeper
+          </span>
+        </div>
+      </div>
+
+      <!-- Instant Demo Login Preset Buttons -->
+      <div class="flex flex-wrap items-center gap-1.5 text-xs">
+        <span class="text-slate-400 text-[11px] mr-1">Quick Test Login:</span>
+        <button onclick="quickSwitchSession('login')" id="nav-login" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold border border-slate-700">
+          🔐 Unified Login Page
+        </button>
+        <button onclick="quickSwitchSession('guest')" id="nav-guest" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-semibold border border-slate-700">
+          📱 Guest QR Gate (Room 204)
+        </button>
+        <button onclick="quickSwitchSession('reception')" id="nav-reception" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 font-semibold border border-slate-700">
+          🖥️ Reception PC
+        </button>
+        <button onclick="quickSwitchSession('kitchen')" id="nav-kitchen" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-orange-300 font-semibold border border-slate-700">
+          👨‍🍳 Kitchen Display
+        </button>
+        <button onclick="quickSwitchSession('owner')" id="nav-owner" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 font-semibold border border-slate-700">
+          👑 Remote Owner Portal
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- LIVE EVENT BANNER -->
+  <div id="liveBanner" class="hidden bg-emerald-950/90 border-b border-emerald-500/40 px-4 py-2 text-center text-xs text-emerald-200 font-medium"></div>
+
+  <!-- =================================================================== -->
+  <!-- VIEW 1: UNIFIED LOGIN PORTAL (SINGLE URL FOR GUEST, STAFF & OWNER)  -->
+  <!-- =================================================================== -->
+  <section id="view-login" class="flex-1 flex items-center justify-center p-4">
+    <div class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-12 bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+      
+      <!-- Left Column: Brand & Role Explanation -->
+      <div class="md:col-span-5 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 p-6 flex flex-col justify-between border-r border-slate-800">
+        <div>
+          <span class="text-[10px] uppercase tracking-widest bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-full font-bold">
+            The Grand Regency • Powered by Korex
+          </span>
+          <h1 class="text-2xl font-extrabold text-white mt-3">One Link. Four Secured Portals.</h1>
+          <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+            Customers cannot use Wi-Fi or order food until the Receptionist checks them in and activates their mobile number on the Front Desk computer.
+          </p>
+
+          <!-- Demo Credentials Cheat Sheet -->
+          <div class="mt-6 space-y-2.5 text-xs">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Click Any Card to Auto-Fill Login:</p>
+            
+            <button onclick="fillCredentials('guest', '9876543210', '204')" class="w-full text-left p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 transition">
+              <p class="font-bold text-amber-400">📱 Checked-In Guest (Room 204)</p>
+              <p class="text-[11px] text-slate-400">Mobile: <strong class="text-white">9876543210</strong> • Password: <strong class="text-white">204</strong></p>
+            </button>
+
+            <button onclick="fillCredentials('guest', '9999988888', '205')" class="w-full text-left p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 transition">
+              <p class="font-bold text-rose-400">🔒 Vacant / Unapproved Room (Room 205)</p>
+              <p class="text-[11px] text-slate-400">Mobile: <strong class="text-white">9999988888</strong> • Password: <strong class="text-white">205</strong> (Blocked until Reception Check-In)</p>
+            </button>
+
+            <button onclick="fillCredentials('staff', 'reception@hotel.com', 'desk123')" class="w-full text-left p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 transition">
+              <p class="font-bold text-emerald-400">🖥️ Receptionist Staff Login</p>
+              <p class="text-[11px] text-slate-400">Email: <strong class="text-white">reception@hotel.com</strong> • Pass: <strong class="text-white">desk123</strong></p>
+            </button>
+
+            <button onclick="fillCredentials('staff', 'kitchen@hotel.com', 'cook123')" class="w-full text-left p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 transition">
+              <p class="font-bold text-orange-400">👨‍🍳 Kitchen Cook Login</p>
+              <p class="text-[11px] text-slate-400">Email: <strong class="text-white">kitchen@hotel.com</strong> • Pass: <strong class="text-white">cook123</strong></p>
+            </button>
+
+            <button onclick="fillCredentials('staff', 'owner@hotel.com', 'boss123')" class="w-full text-left p-2.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 border border-slate-800 transition">
+              <p class="font-bold text-indigo-400">👑 Hotel Owner Remote Login</p>
+              <p class="text-[11px] text-slate-400">Email: <strong class="text-white">owner@hotel.com</strong> • Pass: <strong class="text-white">boss123</strong></p>
+            </button>
+          </div>
+        </div>
+
+        <p class="text-[11px] text-slate-500 mt-4">Accessible from any mobile, tablet, or desktop browser worldwide.</p>
+      </div>
+
+      <!-- Right Column: Login Form -->
+      <div class="md:col-span-7 p-6 sm:p-8 flex flex-col justify-center">
+        <!-- Mode Toggle -->
+        <div class="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 mb-6 text-xs font-bold">
+          <button onclick="toggleLoginMode('guest')" id="lmode-guest" class="py-2.5 rounded-lg bg-amber-500 text-slate-950">
+            🛎️ Room Guest Login
+          </button>
+          <button onclick="toggleLoginMode('staff')" id="lmode-staff" class="py-2.5 rounded-lg text-slate-400 hover:text-white">
+            🔐 Staff / Owner Login
+          </button>
+        </div>
+
+        <!-- GUEST LOGIN BOX -->
+        <div id="form-guest" class="space-y-4">
+          <div>
+            <h2 class="text-lg font-bold text-white">Guest Room Verification</h2>
+            <p class="text-xs text-slate-400">Enter the mobile number registered at Reception check-in & your Room Number.</p>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Registered Mobile Number</label>
+            <input id="guestPhoneInput" type="tel" value="9876543210" placeholder="10-digit mobile number" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Password (Your Room Number)</label>
+            <input id="guestRoomInput" type="text" value="204" placeholder="e.g. 204" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none" />
+          </div>
+          <div id="guestLoginError" class="hidden bg-rose-950/80 border border-rose-500/40 text-rose-200 p-3 rounded-xl text-xs"></div>
+          <button onclick="handleGuestLogin()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm py-3 rounded-xl shadow-lg transition">
+            Unlock Room Wi-Fi, Menu & Services →
+          </button>
+        </div>
+
+        <!-- STAFF / OWNER LOGIN BOX -->
+        <div id="form-staff" class="space-y-4 hidden">
+          <div>
+            <h2 class="text-lg font-bold text-white">Staff & Owner Cloud Portal</h2>
+            <p class="text-xs text-slate-400">Log in from the hotel reception PC, kitchen screen, or remotely from home.</p>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Official Email ID</label>
+            <input id="staffEmailInput" type="email" value="reception@hotel.com" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+            <input id="staffPassInput" type="password" value="desk123" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none" />
+          </div>
+          <div id="staffLoginError" class="hidden bg-rose-950/80 border border-rose-500/40 text-rose-200 p-3 rounded-xl text-xs"></div>
+          <button onclick="handleStaffLogin()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm py-3 rounded-xl shadow-lg transition">
+            Sign In to Role Dashboard →
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =================================================================== -->
+  <!-- VIEW 2: VERIFIED GUEST CONCIERGE PORTAL (UNLOCKED AFTER CHECK-IN)   -->
+  <!-- =================================================================== -->
+  <section id="view-guest" class="flex-1 hidden p-4">
+    <div class="max-w-md mx-auto bg-slate-900 border-4 border-slate-800 rounded-[32px] overflow-hidden shadow-2xl flex flex-col min-h-[700px]">
+      <!-- Guest Top Bar -->
+      <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-4 border-b border-slate-800 flex justify-between items-center">
+        <div>
+          <span class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+            ✓ Verified Check-In
+          </span>
+          <h2 class="text-base font-extrabold text-white mt-1">
+            Room <span id="gPortalRoom">204</span> • <span id="gPortalName">Mr. Sameer</span>
+          </h2>
+          <p class="text-[11px] text-slate-400">Registered Phone: <span id="gPortalPhone">9876543210</span></p>
+        </div>
+        <button onclick="quickSwitchSession('login')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-700">
+          Log Out
+        </button>
+      </div>
+
+      <!-- Reception-Controlled Wi-Fi Card -->
+      <div id="guestWifiBox" class="m-3.5 p-3.5 rounded-2xl border bg-emerald-950/30 border-emerald-500/40"></div>
+
+      <!-- Guest Service & Food Menu Tabs -->
+      <div class="px-3.5 flex gap-1.5 text-xs font-bold">
+        <button onclick="switchGuestSubTab('food')" id="gsub-food" class="flex-1 py-2 rounded-xl bg-amber-500 text-slate-950">🍽️ Order Food</button>
+        <button onclick="switchGuestSubTab('room')" id="gsub-room" class="flex-1 py-2 rounded-xl bg-slate-800 text-slate-300">🛎️ Towels / Service</button>
+        <button onclick="switchGuestSubTab('orders')" id="gsub-orders" class="flex-1 py-2 rounded-xl bg-slate-800 text-slate-300">🧾 My Tab</button>
+      </div>
+
+      <!-- Sub-View A: Food Menu -->
+      <div id="gsubview-food" class="flex-1 p-3.5 space-y-2.5 overflow-y-auto">
+        <div id="guestFoodItems" class="space-y-2"></div>
+        <button onclick="placeGuestFoodOrder()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl shadow mt-2">
+          Place Food Order (Routes to Reception + Kitchen) →
+        </button>
+      </div>
+
+      <!-- Sub-View B: Housekeeping & Room Service (Routes to Reception Index) -->
+      <div id="gsubview-room" class="flex-1 p-3.5 space-y-2.5 hidden overflow-y-auto">
+        <p class="text-[11px] text-slate-400">Select items below. Your request goes straight to the <strong>Reception Computer Index</strong>, and front-desk staff will dispatch housekeeping to your room:</p>
+        <div id="guestServiceButtons" class="grid grid-cols-2 gap-2"></div>
+        <button onclick="placeGuestServiceRequest()" class="w-full bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold text-xs py-3 rounded-xl shadow mt-2">
+          Send Request to Reception Desk →
+        </button>
+      </div>
+
+      <!-- Sub-View C: Guest Running Bill & Live Status -->
+      <div id="gsubview-orders" class="flex-1 p-3.5 space-y-2.5 hidden overflow-y-auto">
+        <div id="guestActiveOrdersList" class="space-y-2"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================== -->
+  <!-- VIEW 3: RECEPTION DESKTOP SOFTWARE (CHECK-IN GATEKEEPER + INDEX)    -->
+  <!-- =================================================================== -->
+  <section id="view-reception" class="flex-1 hidden p-4 max-w-[1600px] w-full mx-auto space-y-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-wrap justify-between items-center gap-3">
+      <div>
+        <span class="text-[10px] uppercase tracking-wider bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">Logged in: reception@hotel.com</span>
+        <h2 class="text-lg font-extrabold text-white mt-0.5">🖥️ Front Desk Master Index & Guest Access Control</h2>
+        <p class="text-xs text-slate-400">Grant/Revoke Room Wi-Fi & Menu access • Receive all Food & Housekeeping requests • Remind cleaning staff</p>
+      </div>
+      <button onclick="quickSwitchSession('guest')" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-xl shadow">
+        📱 Test Guest Login in Room 205 After Check-In
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <!-- LEFT 7 COLS: ROOM ACCESS & CHECK-IN PERMISSION GRID -->
+      <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div class="flex justify-between items-center">
+          <h3 class="text-sm font-bold text-white">🔑 Room Check-In & Permission Gatekeeper (Rooms 201 – 206)</h3>
+          <span class="text-[11px] text-slate-400">Password for Guest = Room Number</span>
+        </div>
+        <div id="receptionRoomsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      </div>
+
+      <!-- RIGHT 5 COLS: LIVE INCOMING RECEPTION INDEX (FOOD + CLEANING REMINDERS) -->
+      <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2.5 mb-3">
+          <div>
+            <h3 class="text-sm font-bold text-white">🔔 Live Reception Incoming Feed</h3>
+            <p class="text-[11px] text-slate-400">Food auto-syncs to Kitchen • Reception notifies cleaning staff</p>
+          </div>
+          <span id="receptionPendingCount" class="bg-rose-500 text-white text-xs font-extrabold px-2.5 py-0.5 rounded-full">0</span>
+        </div>
+        <div id="receptionIncomingFeed" class="space-y-2.5 flex-1 overflow-y-auto max-h-[520px]"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================================================================== -->
+  <!-- VIEW 4: KITCHEN COOK PORTAL (kitchen@hotel.com)                     -->
+  <!-- =================================================================== -->
+  <section id="view-kitchen" class="flex-1 hidden p-4 max-w-[1400px] w-full mx-auto space-y-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex justify-between items-center">
+      <div>
+        <span class="text-[10px] uppercase tracking-wider bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded font-bold">Logged in: kitchen@hotel.com</span>
+        <h2 class="text-lg font-extrabold text-white mt-0.5">👨‍🍳 Kitchen Live Order Screen (KDS)</h2>
+        <p class="text-xs text-slate-400">Receives verified room food orders automatically when placed by checked-in guests</p>
+      </div>
+    </div>
+    <div id="kitchenLiveCards" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+  </section>
+
+  <!-- =================================================================== -->
+  <!-- VIEW 5: REMOTE OWNER COMMAND CENTER (owner@hotel.com)               -->
+  <!-- =================================================================== -->
+  <section id="view-owner" class="flex-1 hidden p-4 max-w-[1600px] w-full mx-auto space-y-4">
+    <div class="bg-slate-900 border border-indigo-500/40 rounded-2xl p-4 flex flex-wrap justify-between items-center gap-3">
+      <div>
+        <span class="text-[10px] uppercase tracking-wider bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-bold">
+          Logged in Remotely: owner@hotel.com
+        </span>
+        <h2 class="text-lg font-extrabold text-white mt-0.5">👑 Owner Remote Live Monitoring Dashboard</h2>
+        <p class="text-xs text-slate-400">Monitor occupied rooms, active Wi-Fi grants, kitchen speed, and pending reception tasks from anywhere in the world</p>
+      </div>
+      <div class="flex gap-3 text-xs">
+        <div class="bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl">
+          <span class="text-slate-400">Checked-In Rooms:</span>
+          <strong id="ownerOccupiedCount" class="text-emerald-400 ml-1">3 / 4</strong>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl">
+          <span class="text-slate-400">Live Food Revenue:</span>
+          <strong id="ownerTotalRev" class="text-amber-400 ml-1">₹780</strong>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl">
+          <span class="text-slate-400">Pending Tasks:</span>
+          <strong id="ownerPendingTasks" class="text-rose-400 ml-1">2</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Owner Audit Table -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <h3 class="text-sm font-bold text-white mb-3">📡 Real-Time Hotel Activity Stream (What is Working & Pending Right Now)</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="text-[10px] uppercase text-slate-400 border-b border-slate-800">
+            <tr>
+              <th class="py-2.5">Time</th>
+              <th class="py-2.5">Room & Guest</th>
+              <th class="py-2.5">Category</th>
+              <th class="py-2.5">Order / Request Details</th>
+              <th class="py-2.5">Department Status</th>
+            </tr>
+          </thead>
+          <tbody id="ownerAuditTable" class="divide-y divide-slate-800"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    // --- AUDIO BEEP ---
+    function playChime() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        osc.start(); osc.stop(ctx.currentTime + 0.35);
+      } catch (e) {}
+    }
+
+    function flashBanner(html) {
+      const b = document.getElementById("liveBanner");
+      b.innerHTML = html;
+      b.classList.remove("hidden");
+      setTimeout(() => b.classList.add("hidden"), 6000);
+    }
+
+    // --- MASTER ROOMS DATABASE (CONTROLLED BY RECEPTION PC) ---
+    const roomsDB = {
+      "204": {
+        room: "204",
+        checkedIn: true,
+        guestName: "Mr. Sameer",
+        mobile: "9876543210",
+        wifiGranted: true,
+        menuGranted: true,
+        wifiCode: "RG204-8841"
+      },
+      "205": {
+        room: "205",
+        checkedIn: false,
+        guestName: "",
+        mobile: "",
+        wifiGranted: false,
+        menuGranted: false,
+        wifiCode: "LOCKED"
+      },
+      "206": {
+        room: "206",
+        checkedIn: true,
+        guestName: "Ms. Priya Sharma",
+        mobile: "9811122233",
+        wifiGranted: true,
+        menuGranted: true,
+        wifiCode: "RG206-5519"
+      },
+      "301": {
+        room: "301",
+        checkedIn: true,
+        guestName: "Mr. Rajesh Verma",
+        mobile: "9777766655",
+        wifiGranted: true,
+        menuGranted: true,
+        wifiCode: "RG301-9012"
+      }
+    };
+
+    let currentLoggedInRoom = "204";
+
+    // --- MENU & SERVICE ITEMS ---
+    const foodCatalog = [
+      { id: 1, name: "Paneer Tikka Butter Masala", price: 320, qty: 1 },
+      { id: 2, name: "2x Garlic Butter Naan", price: 110, qty: 0 },
+      { id: 3, name: "Hot Masala Chai Kettle", price: 90, qty: 1 },
+      { id: 4, name: "Crispy Veg Club Sandwich", price: 210, qty: 0 }
+    ];
+
+    const serviceCatalog = [
+      { id: "towel", name: "2x Fresh Bath Towels", icon: "🧺", selected: true },
+      { id: "slipper", name: "Room Slippers Pair", icon: "🩴", selected: false },
+      { id: "water", name: "2x Mineral Water Bottles", icon: "💧", selected: false },
+      { id: "clean", name: "Clean My Room Now", icon: "🧹", selected: false }
+    ];
+
+    // --- ALL ORDERS & REQUESTS (SYNCED ACROSS RECEPTION, KITCHEN, AND OWNER) ---
+    let masterFeed = [
+      {
+        id: 1001,
+        time: "5:18 PM",
+        room: "204",
+        guestName: "Mr. Sameer",
+        type: "FOOD",
+        items: ["1x Paneer Tikka Butter Masala", "2x Garlic Butter Naan"],
+        amount: 430,
+        status: "COOKING IN KITCHEN"
+      },
+      {
+        id: 1002,
+        time: "5:21 PM",
+        room: "206",
+        guestName: "Ms. Priya Sharma",
+        type: "SERVICE",
+        items: ["2x Fresh Bath Towels", "Room Slippers Pair"],
+        amount: 0,
+        status: "AT RECEPTION (REMIND CLEANING STAFF)"
+      }
+    ];
+
+    // --- LOGIN PAGE CONTROLS ---
+    function toggleLoginMode(mode) {
+      document.getElementById("form-guest").classList.toggle("hidden", mode !== "guest");
+      document.getElementById("form-staff").classList.toggle("hidden", mode !== "staff");
+      document.getElementById("lmode-guest").className = mode === "guest"
+        ? "py-2.5 rounded-lg bg-amber-500 text-slate-950 font-bold"
+        : "py-2.5 rounded-lg text-slate-400 hover:text-white";
+      document.getElementById("lmode-staff").className = mode === "staff"
+        ? "py-2.5 rounded-lg bg-emerald-500 text-slate-950 font-bold"
+        : "py-2.5 rounded-lg text-slate-400 hover:text-white";
+    }
+
+    function fillCredentials(mode, idVal, passVal) {
+      toggleLoginMode(mode);
+      if (mode === "guest") {
+        document.getElementById("guestPhoneInput").value = idVal;
+        document.getElementById("guestRoomInput").value = passVal;
+        document.getElementById("guestLoginError").classList.add("hidden");
+      } else {
+        document.getElementById("staffEmailInput").value = idVal;
+        document.getElementById("staffPassInput").value = passVal;
+        document.getElementById("staffLoginError").classList.add("hidden");
+      }
+    }
+
+    // --- GUEST AUTHENTICATION (CHECKS RECEPTION PERMISSION) ---
+    function handleGuestLogin() {
+      const phone = document.getElementById("guestPhoneInput").value.trim();
+      const room = document.getElementById("guestRoomInput").value.trim();
+      const errBox = document.getElementById("guestLoginError");
+
+      const roomRecord = roomsDB[room];
+      if (!roomRecord || !roomRecord.checkedIn) {
+        errBox.innerHTML = `🔒 <strong>Access Denied for Room ${room}:</strong> This room is currently marked VACANT at Reception. Only checked-in guests granted permission by the Front Desk PC can access Wi-Fi or the Menu.`;
+        errBox.classList.remove("hidden");
+        return;
+      }
+
+      if (roomRecord.mobile !== phone) {
+        errBox.innerHTML = `⚠️ <strong>Mobile Number Mismatch:</strong> Phone number <strong>${phone}</strong> does not match the number registered at Reception for Room ${room}.`;
+        errBox.classList.remove("hidden");
+        return;
+      }
+
+      if (!roomRecord.menuGranted) {
+        errBox.innerHTML = `🚫 <strong>Permission Paused by Reception:</strong> Front desk has temporarily disabled digital ordering for Room ${room}.`;
+        errBox.classList.remove("hidden");
+        return;
+      }
+
+      errBox.classList.add("hidden");
+      currentLoggedInRoom = room;
+      quickSwitchSession("guest");
+      flashBanner(`✅ Verified Guest Login: <strong>${roomRecord.guestName} (Room ${room})</strong> unlocked Wi-Fi & Room Concierge.`);
+    }
+
+    // --- STAFF & OWNER EMAIL AUTHENTICATION ---
+    function handleStaffLogin() {
+      const email = document.getElementById("staffEmailInput").value.trim().toLowerCase();
+      const errBox = document.getElementById("staffLoginError");
+      errBox.classList.add("hidden");
+
+      if (email.startsWith("reception")) {
+        quickSwitchSession("reception");
+        flashBanner(`🖥️ Logged in as <strong>Receptionist</strong> — Full Check-In Gatekeeper & Master Room Index opened.`);
+      } else if (email.startsWith("kitchen")) {
+        quickSwitchSession("kitchen");
+        flashBanner(`👨‍🍳 Logged in as <strong>Kitchen Staff</strong> — Live Food KDS opened.`);
+      } else if (email.startsWith("owner")) {
+        quickSwitchSession("owner");
+        flashBanner(`👑 Logged in as <strong>Hotel Owner (Remote View)</strong> — Live Hotel Command Center opened.`);
+      } else {
+        errBox.innerText = "Invalid staff email. Use reception@hotel.com, kitchen@hotel.com, or owner@hotel.com";
+        errBox.classList.remove("hidden");
+      }
+    }
+
+    function quickSwitchSession(view) {
+      ["login", "guest", "reception", "kitchen", "owner"].forEach(v => {
+        document.getElementById(`view-${v}`).classList.toggle("hidden", v !== view);
+      });
+      renderAllViews();
+    }
+
+    // --- GUEST PORTAL RENDERING ---
+    function switchGuestSubTab(sub) {
+      ["food", "room", "orders"].forEach(s => {
+        document.getElementById(`gsubview-${s}`).classList.toggle("hidden", s !== sub);
+        document.getElementById(`gsub-${s}`).className = s === sub
+          ? "flex-1 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold"
+          : "flex-1 py-2 rounded-xl bg-slate-800 text-slate-300";
+      });
+    }
+
+    function renderGuestPortal() {
+      const r = roomsDB[currentLoggedInRoom] || roomsDB["204"];
+      document.getElementById("gPortalRoom").innerText = r.room;
+      document.getElementById("gPortalName").innerText = r.guestName;
+      document.getElementById("gPortalPhone").innerText = r.mobile;
+
+      const wifiBox = document.getElementById("guestWifiBox");
+      if (r.wifiGranted) {
+        wifiBox.className = "m-3.5 p-3.5 rounded-2xl border bg-emerald-950/40 border-emerald-500/40";
+        wifiBox.innerHTML = `
+          <div class="flex justify-between items-center">
+            <div>
+              <p class="text-xs font-bold text-emerald-300"><i class="fa-solid fa-wifi mr-1"></i>Reception Granted Room Wi-Fi</p>
+              <p class="text-[11px] text-slate-300 mt-0.5">Network: <strong>GrandRegency_Room_${r.room}</strong></p>
+              <p class="text-[11px] text-slate-300">Room Access Key: <strong class="text-amber-300 font-mono">${r.wifiCode}</strong></p>
+            </div>
+            <span class="text-[10px] bg-emerald-500 text-slate-950 font-extrabold px-2 py-1 rounded-lg">Unlocked</span>
+          </div>
+        `;
+      } else {
+        wifiBox.className = "m-3.5 p-3.5 rounded-2xl border bg-rose-950/40 border-rose-500/40";
+        wifiBox.innerHTML = `<p class="text-xs font-bold text-rose-300">🔒 Wi-Fi Access Revoked by Reception Desk</p>`;
+      }
+
+      // Render Food List
+      document.getElementById("guestFoodItems").innerHTML = foodCatalog.map(f => `
+        <div class="bg-slate-800/90 border border-slate-700 rounded-xl p-2.5 flex justify-between items-center">
+          <div>
+            <p class="text-xs font-bold text-white">${f.name}</p>
+            <p class="text-[11px] text-amber-400 font-semibold">₹${f.price}</p>
+          </div>
+          <div class="flex items-center gap-2 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-700">
+            <button onclick="changeFoodQty(${f.id}, -1)" class="text-slate-300 font-bold text-xs">-</button>
+            <span class="text-xs font-bold text-white">${f.qty}</span>
+            <button onclick="changeFoodQty(${f.id}, 1)" class="text-amber-400 font-bold text-xs">+</button>
+          </div>
+        </div>
+      `).join("");
+
+      // Render Service Items
+      document.getElementById("guestServiceButtons").innerHTML = serviceCatalog.map(s => `
+        <button onclick="toggleServiceItem('${s.id}')" class="p-3 rounded-xl border text-left transition ${s.selected ? 'bg-sky-500/20 border-sky-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-300'}">
+          <div class="text-lg">${s.icon}</div>
+          <p class="text-xs font-bold mt-1">${s.name}</p>
+          <p class="text-[10px] text-slate-400">Free Room Service</p>
+        </button>
+      `).join("");
+
+      // Render Guest Active Orders
+      const myOrders = masterFeed.filter(o => o.room === r.room);
+      document.getElementById("guestActiveOrdersList").innerHTML = myOrders.map(o => `
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs">
+          <div class="flex justify-between font-bold text-white">
+            <span>${o.type === 'FOOD' ? '🍽️ Food Order' : '🛎️ Room Service'}</span>
+            <span class="text-amber-400">${o.amount ? '₹' + o.amount : 'Free'}</span>
+          </div>
+          <p class="text-[11px] text-slate-300 mt-1">${o.items.join(", ")}</p>
+          <p class="text-[10px] text-emerald-400 font-semibold mt-1">Status: ${o.status}</p>
+        </div>
+      `).join("") || `<p class="text-xs text-slate-500">No requests placed yet.</p>`;
+    }
+
+    function changeFoodQty(id, d) {
+      const item = foodCatalog.find(x => x.id === id);
+      if (item) item.qty = Math.max(0, item.qty + d);
+      renderGuestPortal();
+    }
+
+    function toggleServiceItem(id) {
+      const s = serviceCatalog.find(x => x.id === id);
+      if (s) s.selected = !s.selected;
+      renderGuestPortal();
+    }
+
+    function placeGuestFoodOrder() {
+      const chosen = foodCatalog.filter(f => f.qty > 0);
+      if (!chosen.length) return alert("Add at least 1 food item!");
+      const r = roomsDB[currentLoggedInRoom];
+      const total = chosen.reduce((sum, f) => sum + f.price * f.qty, 0);
+      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      masterFeed.unshift({
+        id: Date.now(),
+        time: now,
+        room: r.room,
+        guestName: r.guestName,
+        type: "FOOD",
+        items: chosen.map(c => `${c.qty}x ${c.name}`),
+        amount: total,
+        status: "NEW — SENT TO RECEPTION & KITCHEN"
+      });
+
+      foodCatalog.forEach(f => f.qty = 0);
+      playChime();
+      quickSwitchSession("reception");
+      flashBanner(`🍽️ <strong>Room ${r.room} (${r.guestName})</strong> placed a ₹${total} food order! Automatically popped up on <strong>Reception Index</strong> AND <strong>Kitchen Screen</strong>.`);
+    }
+
+    function placeGuestServiceRequest() {
+      const chosen = serviceCatalog.filter(s => s.selected);
+      if (!chosen.length) return alert("Select at least 1 room service item!");
+      const r = roomsDB[currentLoggedInRoom];
+      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      masterFeed.unshift({
+        id: Date.now(),
+        time: now,
+        room: r.room,
+        guestName: r.guestName,
+        type: "SERVICE",
+        items: chosen.map(c => c.name),
+        amount: 0,
+        status: "AT RECEPTION (REMIND CLEANING STAFF)"
+      });
+
+      serviceCatalog.forEach(s => s.selected = false);
+      playChime();
+      quickSwitchSession("reception");
+      flashBanner(`🛎️ <strong>Room ${r.room}</strong> requested <strong>${chosen.map(c => c.name).join(", ")}</strong>! Appeared on <strong>Reception Index</strong> so Front Desk can send cleaning staff.`);
+    }
+
+    // --- RECEPTION DESKTOP RENDERING (CHECK-IN GATEKEEPER + MASTER FEED) ---
+    function renderReception() {
+      const grid = document.getElementById("receptionRoomsGrid");
+      grid.innerHTML = Object.values(roomsDB).map(r => `
+        <div class="p-3.5 rounded-2xl border ${r.checkedIn ? 'bg-slate-950 border-emerald-500/40' : 'bg-slate-950/50 border-slate-800'} space-y-2.5">
+          <div class="flex justify-between items-center">
+            <span class="text-sm font-extrabold text-white">Room ${r.room}</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${r.checkedIn ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300'}">
+              ${r.checkedIn ? '✓ Checked-In & Active' : '🔒 Vacant (QR Locked)'}
+            </span>
+          </div>
+
+          ${r.checkedIn ? `
+            <div class="text-xs space-y-1 text-slate-300 bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+              <p>Guest: <strong class="text-white">${r.guestName}</strong></p>
+              <p>Login Mobile: <strong class="text-amber-400">${r.mobile}</strong></p>
+              <p>Login Password: <strong class="text-emerald-400">${r.room}</strong></p>
+              <p>Wi-Fi Key: <span class="font-mono text-[11px] text-sky-300">${r.wifiGranted ? r.wifiCode : 'Paused'}</span></p>
+            </div>
+            <div class="flex gap-1.5 text-[11px]">
+              <button onclick="toggleRoomWifi('${r.room}')" class="flex-1 py-1.5 rounded-lg font-semibold border ${r.wifiGranted ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-400'}">
+                Wi-Fi: ${r.wifiGranted ? 'ON' : 'OFF'}
+              </button>
+              <button onclick="checkoutRoom('${r.room}')" class="px-3 py-1.5 rounded-lg bg-rose-600/80 hover:bg-rose-500 text-white font-bold">
+                Check-Out & Lock
+              </button>
+            </div>
+          ` : `
+            <div class="space-y-2 pt-1">
+              <input id="cname-${r.room}" type="text" placeholder="Guest Name (e.g. Mr. Rahul)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white" value="Mr. Aman Gupta" />
+              <input id="cphone-${r.room}" type="tel" placeholder="Customer Mobile Number" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white" value="9999988888" />
+              <button onclick="checkInRoom('${r.room}')" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs py-2 rounded-lg shadow">
+                ✓ Grant Check-In, Wi-Fi & Menu Access
+              </button>
+            </div>
+          `}
+        </div>
+      `).join("");
+
+      // Incoming Feed
+      const pending = masterFeed.filter(m => !m.status.includes("COMPLETED") && !m.status.includes("SERVED"));
+      document.getElementById("receptionPendingCount").innerText = pending.length;
+
+      document.getElementById("receptionIncomingFeed").innerHTML = masterFeed.map(item => `
+        <div class="p-3 rounded-xl border ${item.type === 'FOOD' ? 'bg-amber-950/20 border-amber-500/40' : 'bg-sky-950/20 border-sky-500/40'} space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-extrabold text-white">Room ${item.room} (${item.guestName})</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded ${item.type === 'FOOD' ? 'bg-amber-500 text-slate-950' : 'bg-sky-400 text-slate-950'}">
+              ${item.type === 'FOOD' ? '🍽️ FOOD → KITCHEN' : '🛎️ ROOM SERVICE'}
+            </span>
+          </div>
+          <p class="text-xs text-slate-200 font-medium">${item.items.join(", ")} ${item.amount ? `<strong class="text-amber-400">(₹${item.amount})</strong>` : ''}</p>
+          <div class="flex justify-between items-center text-[11px] pt-1 border-t border-slate-800/80">
+            <span class="text-slate-400">${item.time} • <strong class="text-emerald-300">${item.status}</strong></span>
+            ${item.type === "SERVICE" && !item.status.includes("COMPLETED") ? `
+              <button onclick="markReceptionTaskDone(${item.id})" class="bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold px-2.5 py-1 rounded-lg">
+                ✓ Cleaning Staff Sent
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function checkInRoom(roomNum) {
+      const name = document.getElementById(`cname-${roomNum}`).value.trim() || "Walk-In Guest";
+      const phone = document.getElementById(`cphone-${roomNum}`).value.trim() || "9999988888";
+      roomsDB[roomNum] = {
+        room: roomNum,
+        checkedIn: true,
+        guestName: name,
+        mobile: phone,
+        wifiGranted: true,
+        menuGranted: true,
+        wifiCode: `RG${roomNum}-${Math.floor(1000 + Math.random() * 9000)}`
+      };
+      currentLoggedInRoom = roomNum;
+      playChime();
+      renderAllViews();
+      flashBanner(`🔑 <strong>Reception Granted Access to Room ${roomNum}!</strong> Customer can now log in with Mobile: <strong>${phone}</strong> & Password: <strong>${roomNum}</strong>.`);
+    }
+
+    function checkoutRoom(roomNum) {
+      roomsDB[roomNum].checkedIn = false;
+      roomsDB[roomNum].wifiGranted = false;
+      roomsDB[roomNum].menuGranted = false;
+      roomsDB[roomNum].wifiCode = "LOCKED";
+      renderAllViews();
+      flashBanner(`🔒 <strong>Room ${roomNum} Checked Out & Locked!</strong> Wi-Fi and QR Menu are now blocked for Room ${roomNum} until the next guest checks in.`);
+    }
+
+    function toggleRoomWifi(roomNum) {
+      roomsDB[roomNum].wifiGranted = !roomsDB[roomNum].wifiGranted;
+      renderAllViews();
+    }
+
+    function markReceptionTaskDone(id) {
+      const item = masterFeed.find(x => x.id === id);
+      if (item) item.status = "COMPLETED (STAFF DISPATCHED BY RECEPTION)";
+      renderAllViews();
+    }
+
+    // --- KITCHEN VIEW RENDERING ---
+    function renderKitchenView() {
+      const foodOnly = masterFeed.filter(x => x.type === "FOOD");
+      document.getElementById("kitchenLiveCards").innerHTML = foodOnly.map(f => `
+        <div class="bg-slate-900 border ${f.status.includes('SERVED') ? 'border-slate-800' : 'border-amber-500/60 pulse-alert'} rounded-2xl p-4 flex flex-col justify-between space-y-3">
+          <div>
+            <div class="flex justify-between items-center">
+              <span class="text-base font-extrabold text-white">ROOM ${f.room}</span>
+              <span class="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">${f.time}</span>
+            </div>
+            <p class="text-xs text-slate-400 mb-2">${f.guestName}</p>
+            <ul class="text-xs text-white space-y-1 font-semibold">
+              ${f.items.map(i => `<li>• ${i}</li>`).join("")}
+            </ul>
+          </div>
+          <div class="pt-2 border-t border-slate-800 flex gap-2">
+            ${!f.status.includes("SERVED") ? `
+              <button onclick="kitchenUpdate(${f.id}, 'COOKING IN KITCHEN')" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs py-2 rounded-lg">
+                🔥 Cooking
+              </button>
+              <button onclick="kitchenUpdate(${f.id}, 'SERVED TO ROOM')" class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs py-2 rounded-lg">
+                ✅ Served
+              </button>
+            ` : `<span class="text-xs text-emerald-400 font-bold">✓ Delivered to Room ${f.room}</span>`}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function kitchenUpdate(id, newStatus) {
+      const item = masterFeed.find(x => x.id === id);
+      if (item) item.status = newStatus;
+      renderAllViews();
+    }
+
+    // --- OWNER REMOTE DASHBOARD RENDERING ---
+    function renderOwnerView() {
+      const occupied = Object.values(roomsDB).filter(r => r.checkedIn).length;
+      const totalRooms = Object.keys(roomsDB).length;
+      const rev = masterFeed.reduce((sum, x) => sum + (x.amount || 0), 0);
+      const pending = masterFeed.filter(x => !x.status.includes("SERVED") && !x.status.includes("COMPLETED")).length;
+
+      document.getElementById("ownerOccupiedCount").innerText = `${occupied} / ${totalRooms}`;
+      document.getElementById("ownerTotalRev").innerText = `₹${rev}`;
+      document.getElementById("ownerPendingTasks").innerText = pending;
+
+      document.getElementById("ownerAuditTable").innerHTML = masterFeed.map(m => `
+        <tr>
+          <td class="py-2.5 text-slate-400">${m.time}</td>
+          <td class="py-2.5 font-bold text-white">Room ${m.room} (${m.guestName})</td>
+          <td class="py-2.5">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded ${m.type === 'FOOD' ? 'bg-amber-500/20 text-amber-300' : 'bg-sky-500/20 text-sky-300'}">${m.type}</span>
+          </td>
+          <td class="py-2.5 text-slate-200">${m.items.join(", ")} ${m.amount ? `<strong class="text-emerald-400">(₹${m.amount})</strong>` : ''}</td>
+          <td class="py-2.5 font-semibold ${m.status.includes('SERVED') || m.status.includes('COMPLETED') ? 'text-emerald-400' : 'text-amber-300'}">${m.status}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderAllViews() {
+      renderGuestPortal();
+      renderReception();
+      renderKitchenView();
+      renderOwnerView();
+    }
+
+    renderAllViews();
+  </script>
+</body>
+</html>
